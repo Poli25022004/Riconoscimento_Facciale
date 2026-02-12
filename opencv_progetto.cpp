@@ -1,4 +1,4 @@
-﻿#include <opencv2/opencv.hpp>
+#include <opencv2/opencv.hpp>
 #include <opencv2/video/tracking.hpp>
 #include <iostream>
 
@@ -29,86 +29,6 @@ int main() {
     kf.processNoiseCov = cv::Mat::eye(4, 4, CV_32F) * 1e-2;
     kf.measurementNoiseCov = cv::Mat::eye(2, 2, CV_32F) * 1e-1;
     kf.errorCovPost = cv::Mat::eye(4, 4, CV_32F);
-#include <opencv2/opencv.hpp>
-#include <iostream>
-
-    int main() {
-
-        cv::VideoCapture cap(0);
-        if (!cap.isOpened()) return -1;
-
-        cv::Ptr<cv::BackgroundSubtractor> bgSub =
-            cv::createBackgroundSubtractorMOG2();
-
-        cv::KalmanFilter kf(4, 2);
-        kf.transitionMatrix = (cv::Mat_<float>(4, 4) <<
-            1, 0, 1, 0,
-            0, 1, 0, 1,
-            0, 0, 1, 0,
-            0, 0, 0, 1);
-
-        kf.measurementMatrix = cv::Mat::eye(2, 4, CV_32F);
-        kf.processNoiseCov = cv::Mat::eye(4, 4, CV_32F) * 1e-2;
-        kf.measurementNoiseCov = cv::Mat::eye(2, 2, CV_32F) * 1e-1;
-        kf.errorCovPost = cv::Mat::eye(4, 4, CV_32F);
-
-        cv::Mat frame, fgMask;
-
-        while (true) {
-            cap >> frame;
-            if (frame.empty()) break;
-
-            bgSub->apply(frame, fgMask);
-
-            // Pulizia rumore
-            cv::erode(fgMask, fgMask, cv::Mat(), cv::Point(-1, -1), 2);
-            cv::dilate(fgMask, fgMask, cv::Mat(), cv::Point(-1, -1), 2);
-
-            // Troviamo contorni
-            std::vector<std::vector<cv::Point>> contours;
-            cv::findContours(fgMask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-            if (!contours.empty()) {
-                // Troviamo il blob più grande
-                int maxIdx = 0;
-                double maxArea = 0;
-
-                for (int i = 0; i < contours.size(); i++) {
-                    double area = cv::contourArea(contours[i]);
-                    if (area > maxArea) {
-                        maxArea = area;
-                        maxIdx = i;
-                    }
-                }
-
-                cv::Rect bound = cv::boundingRect(contours[maxIdx]);
-                float centerX = bound.x + bound.width / 2;
-                float centerY = bound.y + bound.height / 2;
-
-                // Misura per Kalman
-                cv::Mat measurement(2, 1, CV_32F);
-                measurement.at<float>(0) = centerX;
-                measurement.at<float>(1) = centerY;
-
-                kf.correct(measurement);
-            }
-
-            // Predizione
-            cv::Mat prediction = kf.predict();
-            float predX = prediction.at<float>(0);
-            float predY = prediction.at<float>(1);
-
-            // Disegno
-            cv::circle(frame, cv::Point(predX, predY), 20, cv::Scalar(0, 255, 0), 3);
-
-            cv::imshow("Tracking Movimento", frame);
-            cv::imshow("Mask", fgMask);
-
-            if (cv::waitKey(30) == 27) break;
-        }
-
-        return 0;
-    }
 
     cv::Mat measurement(2, 1, CV_32F);
 
@@ -133,19 +53,19 @@ int main() {
             kf.correct(measurement);
         }
 
-        // Predizione Kalman
+        // 5. Predizione Kalman
         cv::Mat prediction = kf.predict();
         float pred_x = prediction.at<float>(0);
         float pred_y = prediction.at<float>(1);
 
-        // Disegniamo il rettangolo predetto
+        // 6. Disegniamo il rettangolo predetto
         cv::rectangle(frame,
             cv::Point(pred_x - 50, pred_y - 50),
             cv::Point(pred_x + 50, pred_y + 50),
             cv::Scalar(0, 255, 0), 2
         );
 
-        cv::imshow("Face Tracking", frame);
+        cv::imshow("Face Tracking con Kalman", frame);
 
         if (cv::waitKey(30) == 27) break; // ESC per uscire
     }
